@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import { Splitpanes, Pane } from 'splitpanes';
 import 'splitpanes/dist/splitpanes.css';
 import MermaidEditor from './components/MermaidEditor/MermaidEditor.vue';
@@ -11,6 +11,8 @@ const paredError = ref<{
   error: Error;
   marker?: MarkerData;
 } | null>(null);
+
+onMounted(async () => {});
 </script>
 
 <template>
