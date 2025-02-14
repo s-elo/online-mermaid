@@ -9,7 +9,6 @@ const props = defineProps<{
 }>();
 const emits = defineEmits(['parseError']);
 
-mermaid.initialize({ startOnLoad: false });
 const mermaidPreviewRef = ref<HTMLElement | null>(null);
 const parsedError = ref<ParsedError | null>(null);
 const outOfSync = ref<boolean>(false);
@@ -21,8 +20,8 @@ const render = async () => {
     return;
   }
 
-  await mermaid.parse(props.content);
-
+  const ret = await mermaid.parse(props.content);
+  mermaid.initialize({ startOnLoad: false, ...ret.config });
   const { svg, bindFunctions } = await mermaid.render(
     'previewDiv',
     props.content,
