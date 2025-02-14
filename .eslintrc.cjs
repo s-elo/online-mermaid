@@ -12,6 +12,7 @@ module.exports = {
     semi: [2, 'always'],
     'object-curly-spacing': ['error', 'always'],
     'key-spacing': ['error', { beforeColon: false }],
+    'vue/no-v-html': 'off'
   },
   ignorePatterns: ['.eslintrc.cjs', 'dist'],
 };

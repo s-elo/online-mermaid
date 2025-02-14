@@ -2,19 +2,25 @@
 import { ref } from 'vue';
 import { Splitpanes, Pane } from 'splitpanes';
 import 'splitpanes/dist/splitpanes.css';
+import MermaidEditor from './components/MermaidEditor/MermaidEditor.vue';
 import MermaidPreview from './components/MermaidPreview.vue';
+import { MarkerData } from './utils/errorHandler';
 
-const content = ref(`graph TB\na-->b`);
+const content = ref('');
+const paredError = ref<{
+  error: Error;
+  marker?: MarkerData;
+} | null>(null);
 </script>
 
 <template>
   <div class="container">
     <Splitpanes size="50">
       <Pane min-size="25" max-size="100">
-        <div>text</div>
+        <MermaidEditor v-model="content" :parsed-error="paredError" />
       </Pane>
       <Pane>
-        <MermaidPreview :content="content" />
+        <MermaidPreview :content="content" @parse-error="paredError = $event" />
       </Pane>
     </Splitpanes>
   </div>
