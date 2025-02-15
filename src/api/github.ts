@@ -1,5 +1,4 @@
 import {
-  GithubMeta,
   SearchIssuesParams,
   CreateOrUpdateRepoContentParams,
   GetIssuesParams,
@@ -7,23 +6,24 @@ import {
   UpdateIssueParams,
 } from './type';
 import { Octokit } from '@octokit/rest';
-import { strToBase64 } from '../utils/common';
+import { decrypt, strToBase64 } from '../utils/encrypt';
+import repoConfig from '../config.json';
 
-let OWNER = '';
-let REPO = '';
-export function setGithubMeta(meta: GithubMeta) {
-  OWNER = meta.owner;
-  REPO = meta.repo;
-}
-export function getGithubMeta(): GithubMeta {
-  return {
-    owner: OWNER,
-    repo: REPO,
-  };
-}
+const OWNER = repoConfig.owner;
+const REPO = repoConfig.repo;
 
-// TODO auth
-const octokit = new Octokit();
+let octokit: Octokit;
+export function initAuth(password?: string) {
+  const pwd = password ?? localStorage.getItem('mermaid_token_pwd');
+  if (pwd) {
+    octokit = new Octokit({
+      auth: `token ${decrypt(pwd)}`,
+    });
+    return true;
+  }
+
+  return false;
+}
 
 export async function searchIssues({
   content = '',

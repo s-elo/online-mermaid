@@ -1,23 +1,41 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref } from 'vue';
 import { Splitpanes, Pane } from 'splitpanes';
 import 'splitpanes/dist/splitpanes.css';
 import MermaidEditor from './components/MermaidEditor/MermaidEditor.vue';
 import MermaidPreview from './components/MermaidPreview.vue';
 import { MarkerData } from './utils/errorHandler';
+import { initAuth, searchIssues } from './api/github';
 
 const content = ref('');
 const paredError = ref<{
   error: Error;
   marker?: MarkerData;
 } | null>(null);
+const showAuth = ref(false);
+const pwd = ref('');
 
-onMounted(async () => {});
+const checkAuth = async () => {
+  try {
+    initAuth(pwd.value);
+    await searchIssues({ content: '' });
+    localStorage.setItem('mermaid_token_pwd', pwd.value);
+    showAuth.value = false;
+  } catch {
+    showAuth.value = true;
+    alert('wrong password');
+  }
+};
+
+const isAuth = initAuth();
+if (!isAuth) {
+  showAuth.value = true;
+}
 </script>
 
 <template>
   <div class="container">
-    <Splitpanes size="50">
+    <Splitpanes v-if="!showAuth" size="50">
       <Pane min-size="25" max-size="100">
         <MermaidEditor v-model="content" :parsed-error="paredError" />
       </Pane>
@@ -25,6 +43,10 @@ onMounted(async () => {});
         <MermaidPreview :content="content" @parse-error="paredError = $event" />
       </Pane>
     </Splitpanes>
+    <div v-else>
+      <input v-model="pwd" type="text" />
+      <button @click="checkAuth">confirm</button>
+    </div>
   </div>
 </template>
 

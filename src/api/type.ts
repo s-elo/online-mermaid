@@ -1,8 +1,3 @@
-export interface GithubMeta {
-  repo: string;
-  owner: string;
-}
-
 export type UpdateIssueParams = {
   title?: string;
   body: string;
