@@ -16,6 +16,9 @@ const showAuth = ref(false);
 const pwd = ref('');
 
 const checkAuth = async () => {
+  if (!pwd.value.trim()) {
+    return alert('wrong password');
+  }
   try {
     initAuth(pwd.value);
     await searchIssues({ content: '' });
@@ -43,9 +46,9 @@ if (!isAuth) {
         <MermaidPreview :content="content" @parse-error="paredError = $event" />
       </Pane>
     </Splitpanes>
-    <div v-else>
-      <input v-model="pwd" type="text" />
-      <button @click="checkAuth">confirm</button>
+    <div v-else class="auth-container">
+      <input v-model="pwd" type="text" class="auth-input" />
+      <button class="auth-button" @click="checkAuth">Login</button>
     </div>
   </div>
 </template>
@@ -65,6 +68,39 @@ if (!isAuth) {
   cursor: col-resize;
   &:hover {
     background-color: #e9e7e7;
+  }
+}
+.auth {
+  &-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+  }
+  &-input {
+    width: 200px;
+    height: 30px;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+    padding: 0.5rem;
+    &:focus {
+      outline: none;
+      border: 1px solid #2673dd;
+    }
+  }
+  &-button {
+    height: 30px;
+    padding: 0.5rem;
+    cursor: pointer;
+    line-height: 15px;
+    margin-left: 10px;
+    border-radius: 5px;
+    outline: none;
+    border: 1px solid #ccc;
+    background-color: white;
+    &:hover {
+      background-color: #eee;
+    }
   }
 }
 </style>
