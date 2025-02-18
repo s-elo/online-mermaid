@@ -4,8 +4,11 @@ import { Splitpanes, Pane } from 'splitpanes';
 import 'splitpanes/dist/splitpanes.css';
 import MermaidEditor from './components/MermaidEditor/MermaidEditor.vue';
 import MermaidPreview from './components/MermaidPreview.vue';
+import MermaidCollection from './components/MermaidCollection.vue';
+import { TreeViewNodeMetaModel } from '@grapoza/vue-tree';
 import { MarkerData } from './utils/errorHandler';
 import { initAuth, searchIssues } from './api/github';
+import { TreeData, OperationType } from './types';
 
 const content = ref('');
 const paredError = ref<{
@@ -14,6 +17,8 @@ const paredError = ref<{
 } | null>(null);
 const showAuth = ref(false);
 const pwd = ref('');
+
+const mermaidCollection = ref<TreeData[]>([]);
 
 const checkAuth = async () => {
   if (!pwd.value.trim()) {
@@ -34,11 +39,29 @@ const isAuth = initAuth();
 if (!isAuth) {
   showAuth.value = true;
 }
+
+async function afterNodeOperation(
+  node: TreeViewNodeMetaModel | TreeData[],
+  operationType: OperationType,
+) {
+  console.log(
+    'afterNodeOperation',
+    node,
+    operationType,
+    JSON.parse(JSON.stringify(mermaidCollection.value)),
+  );
+}
 </script>
 
 <template>
   <div class="container">
     <Splitpanes v-if="!showAuth" size="50">
+      <Pane min-size="15" max-size="20" size="15">
+        <MermaidCollection
+          v-model="mermaidCollection"
+          :after-node-operation="afterNodeOperation"
+        />
+      </Pane>
       <Pane min-size="25" max-size="100">
         <MermaidEditor v-model="content" :parsed-error="paredError" />
       </Pane>
@@ -56,7 +79,6 @@ if (!isAuth) {
 <style scoped lang="scss">
 .container {
   height: 100%;
-  padding: 20px;
 }
 </style>
 <style lang="scss">

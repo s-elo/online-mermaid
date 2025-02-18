@@ -11,7 +11,7 @@ const props = defineProps<{
   parsedError?: {
     error: Error;
     marker?: MarkerData;
-  };
+  } | null;
 }>();
 const emits = defineEmits(['update:modelValue']);
 
