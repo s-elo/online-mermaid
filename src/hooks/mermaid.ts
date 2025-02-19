@@ -1,10 +1,12 @@
 import { ref, toRaw } from 'vue';
+import { TreeViewNodeMetaModel } from '@grapoza/vue-tree';
 import {
   getRepoContent,
   createOrUpdateRepoContent,
   createIssue,
   updateIssue,
   deleteIssue,
+  getIssue,
 } from '../api/github';
 import { TreeData } from '../types';
 import { base64ToStr } from '../utils/encrypt';
@@ -19,6 +21,7 @@ export function useMermaid() {
   } | null>(null);
   const collectionSha = ref('');
   const collection = ref<TreeData[]>([]);
+  const selectedNode = ref<TreeViewNodeMetaModel | null>(null);
 
   async function initCollection() {
     const res = await getRepoContent('collection.json');
@@ -53,14 +56,21 @@ export function useMermaid() {
     return deleteIssue(id);
   }
 
+  async function getMermaid(selectedNodeId: number) {
+    const res = await getIssue(selectedNodeId);
+    content.value = res.body ?? '';
+  }
+
   return {
     content,
     parsedError,
+    selectedNode,
     collection,
     initCollection,
     setCollection,
     createMermaid,
     updateMermaid,
     deleteMermaid,
+    getMermaid,
   };
 }

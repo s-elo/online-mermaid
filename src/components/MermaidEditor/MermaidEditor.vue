@@ -13,7 +13,7 @@ const props = defineProps<{
     marker?: MarkerData;
   } | null;
 }>();
-const emits = defineEmits(['update:modelValue']);
+const emits = defineEmits(['update:modelValue', 'save']);
 
 const editorDivRef = ref<HTMLElement | null>(null);
 // looks like being proxied by ref will cause some errors
@@ -48,6 +48,15 @@ onMounted(() => {
     },
     theme: 'mermaid',
     overviewRulerLanes: 0,
+  });
+
+  editor.addAction({
+    id: 'mermaid-render-diagram',
+    label: 'Render Diagram',
+    keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS],
+    run: function () {
+      emits('save', props.modelValue);
+    },
   });
 
   const model = editor.getModel();

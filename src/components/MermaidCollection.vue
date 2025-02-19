@@ -15,7 +15,13 @@ import {
   ElMessage,
 } from 'element-plus';
 import { uid } from 'uid';
-import { sort, findParentInTree, isFile, isRootNode } from '../utils/common';
+import {
+  sort,
+  findParentInTree,
+  isFile,
+  isRootNode,
+  callAsync,
+} from '../utils/common';
 import { TreeData, OperationType } from '../types';
 
 const props = defineProps<{
@@ -79,7 +85,7 @@ function modelDefaults(node: TreeData) {
     node.id = node.id.slice(0, -2);
     // wait for the tree to update in the modelValue
     setTimeout(() => {
-      afterDrop(node);
+      callAsync(afterDrop, node);
     }, 0);
   }
 
@@ -102,7 +108,7 @@ function setCurrentOperation(
   dialogVisible.value = true;
 }
 
-function afterDrop(node: TreeData) {
+async function afterDrop(node: TreeData) {
   const parentNode = findParentInTree(
     { id: 'root', label: 'root', children: props.modelValue },
     node,
@@ -115,7 +121,7 @@ function afterDrop(node: TreeData) {
     sort(parentMetaModel[0].data.children);
   }
 
-  props.afterNodeOperation?.(
+  await props.afterNodeOperation?.(
     node as unknown as TreeViewNodeMetaModel,
     OperationType.Drop,
   );
@@ -179,45 +185,33 @@ async function backToTop(node: TreeViewNodeMetaModel) {
   const newData = [...props.modelValue, nodeData];
   sort(newData);
   emit('update:modelValue', newData);
-  props.afterNodeOperation?.(node, OperationType.BackToTop);
+  await props.afterNodeOperation?.(node, OperationType.BackToTop);
 }
 
-const operationConfirmLoading = ref(false);
 async function confirmOperation() {
   if (!currentOperation.value) return;
 
-  operationConfirmLoading.value = true;
-
-  try {
-    const curOperationType = currentOperation.value.operationType;
-    if (curOperationType === OperationType.CreateFolder) {
-      await createFolder(currentOperation.value.node);
-    } else if (curOperationType === OperationType.CreateFile) {
-      await createFile(currentOperation.value.node);
-    } else if (curOperationType === OperationType.Rename) {
-      await rename(currentOperation.value.node as TreeViewNodeMetaModel);
-    } else if (curOperationType === OperationType.Delete) {
-      await deleteNode(currentOperation.value.node as TreeViewNodeMetaModel);
-    }
-
-    await props.afterNodeOperation?.(
-      currentOperation.value.node,
-      currentOperation.value.operationType,
-    );
-    dialogVisible.value = false;
-
-    ElMessage({
-      message: `${curOperationType} successfully`,
-      type: 'success',
-    });
-  } catch (err) {
-    ElMessage({
-      message: (err as Error).message,
-      type: 'error',
-    });
-  } finally {
-    operationConfirmLoading.value = false;
+  const curOperationType = currentOperation.value.operationType;
+  if (curOperationType === OperationType.CreateFolder) {
+    await createFolder(currentOperation.value.node);
+  } else if (curOperationType === OperationType.CreateFile) {
+    await createFile(currentOperation.value.node);
+  } else if (curOperationType === OperationType.Rename) {
+    await rename(currentOperation.value.node as TreeViewNodeMetaModel);
+  } else if (curOperationType === OperationType.Delete) {
+    await deleteNode(currentOperation.value.node as TreeViewNodeMetaModel);
   }
+
+  await props.afterNodeOperation?.(
+    currentOperation.value.node,
+    currentOperation.value.operationType,
+  );
+  dialogVisible.value = false;
+
+  ElMessage({
+    message: `${curOperationType} successfully`,
+    type: 'success',
+  });
 }
 
 function clickNode(node: TreeViewNodeMetaModel) {
@@ -361,7 +355,7 @@ const applyFilter = () => {
                 >
                 <el-dropdown-item
                   v-if="!isRootNode(metaModel, modelValue)"
-                  @click.stop="backToTop(metaModel)"
+                  @click.stop="callAsync(backToTop, metaModel)"
                   >Back To Top</el-dropdown-item
                 >
                 <el-dropdown-item
@@ -400,11 +394,7 @@ const applyFilter = () => {
       <template #footer>
         <div class="dialog-footer">
           <el-button @click="dialogVisible = false">Cancel</el-button>
-          <el-button
-            type="primary"
-            :loading="operationConfirmLoading"
-            @click="confirmOperation"
-          >
+          <el-button type="primary" @click="callAsync(confirmOperation)">
             Confirm
           </el-button>
         </div>

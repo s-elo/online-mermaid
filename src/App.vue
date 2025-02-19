@@ -6,12 +6,11 @@ import MermaidEditor from './components/MermaidEditor/MermaidEditor.vue';
 import MermaidPreview from './components/MermaidPreview.vue';
 import MermaidCollection from './components/MermaidCollection.vue';
 import { TreeViewNodeMetaModel } from '@grapoza/vue-tree';
-import { ElMessage, ElInput, ElButton } from 'element-plus';
+import { ElInput, ElButton, ElMessage } from 'element-plus';
 import { useMermaid } from './hooks/mermaid';
 import { useAuth } from './hooks/auth';
-import { getIssue } from './api/github';
 import { TreeData } from './types';
-import { fullLoading, asyncDebounce, isFile } from './utils/common';
+import { asyncDebounce, isFile, callAsync } from './utils/common';
 
 const {
   content,
@@ -22,6 +21,8 @@ const {
   createMermaid,
   updateMermaid,
   deleteMermaid,
+  getMermaid,
+  selectedNode,
 } = useMermaid();
 
 const { checkAuth, showAuth, pwd, checkLoading } = useAuth(initCollection);
@@ -48,56 +49,36 @@ async function handleDelete(node: TreeViewNodeMetaModel) {
 }
 
 async function afterNodeOperation() {
-  fullLoading.start();
-  try {
-    await setCollection();
-  } catch (err) {
-    ElMessage({
-      message: (err as Error).message,
-      type: 'error',
-    });
-  } finally {
-    fullLoading.close();
-  }
+  return setCollection();
 }
 const debounceAfterNodeOperation = asyncDebounce(afterNodeOperation, 500);
 
-async function syncMermaidContent(selectedNodeId: number) {
-  fullLoading.start();
-  try {
-    const res = await getIssue(selectedNodeId);
-    content.value = res.body ?? '';
-  } catch (err) {
-    ElMessage({
-      message: (err as Error).message,
-      type: 'error',
-    });
-  } finally {
-    fullLoading.close();
-  }
+async function selectNode(node: TreeViewNodeMetaModel) {
+  return callAsync(async () => {
+    await getMermaid(node.data.id);
+    selectedNode.value = node;
+  });
 }
 
-function selectNode(node: TreeViewNodeMetaModel) {
-  syncMermaidContent(node.data.id);
+async function save(content: string) {
+  if (!selectedNode.value) return;
+
+  try {
+    await updateMermaid(selectedNode.value.data.id, {
+      body: content,
+    });
+  } catch (err) {
+    ElMessage({
+      type: 'error',
+      message: (err as Error).message,
+    });
+  }
 }
 
 onMounted(async () => {
   if (showAuth.value) return;
 
-  fullLoading.start();
-  try {
-    await initCollection();
-  } catch (err) {
-    const msg = (err as Error).message;
-    if (!msg.startsWith('Not Found')) {
-      ElMessage({
-        message: msg,
-        type: 'error',
-      });
-    }
-  } finally {
-    fullLoading.close();
-  }
+  callAsync(initCollection);
 });
 </script>
 
@@ -115,7 +96,11 @@ onMounted(async () => {
         />
       </Pane>
       <Pane min-size="25" max-size="100">
-        <MermaidEditor v-model="content" :parsed-error="parsedError" />
+        <MermaidEditor
+          v-model="content"
+          :parsed-error="parsedError"
+          @save="save"
+        />
       </Pane>
       <Pane>
         <MermaidPreview

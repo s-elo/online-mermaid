@@ -1,6 +1,6 @@
 import { debounce } from 'lodash';
 import { TreeViewNodeMetaModel } from '@grapoza/vue-tree';
-import { LoadingOptionsResolved, ElLoading } from 'element-plus';
+import { LoadingOptionsResolved, ElLoading, ElMessage } from 'element-plus';
 import { TreeData } from '../types';
 
 export function findParentInTree(
@@ -50,6 +50,26 @@ class FullLoading {
   }
 }
 export const fullLoading = new FullLoading();
+
+/**
+ * with loading and error message
+ */
+export async function callAsync<T extends (...args: any) => any>(
+  fn: T,
+  ...args: Parameters<T>
+) {
+  fullLoading.start();
+  try {
+    await fn(...args);
+  } catch (err) {
+    ElMessage({
+      message: (err as Error).message,
+      type: 'error',
+    });
+  } finally {
+    fullLoading.close();
+  }
+}
 
 export function asyncDebounce<T extends Function>(fn: T, wait: number) {
   const debounced = debounce((resolve, reject, args) => {
