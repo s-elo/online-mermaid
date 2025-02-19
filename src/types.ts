@@ -5,7 +5,7 @@ export type TreeData = {
   label: string;
   /** only for dir node */
   children?: TreeData[];
-  metaModel?: Partial<TreeViewNodeMetaModel>;
+  extra?: Record<string, string>;
 };
 
 export enum OperationType {

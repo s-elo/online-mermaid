@@ -1,14 +1,17 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import { Splitpanes, Pane } from 'splitpanes';
 import 'splitpanes/dist/splitpanes.css';
 import MermaidEditor from './components/MermaidEditor/MermaidEditor.vue';
 import MermaidPreview from './components/MermaidPreview.vue';
 import MermaidCollection from './components/MermaidCollection.vue';
 import { TreeViewNodeMetaModel } from '@grapoza/vue-tree';
+import { ElMessage } from 'element-plus';
+import { useMermaid } from './hooks/mermaid';
 import { MarkerData } from './utils/errorHandler';
-import { initAuth, searchIssues } from './api/github';
-import { TreeData, OperationType } from './types';
+import { getIssue, initAuth, searchIssues } from './api/github';
+import { TreeData } from './types';
+import { fullLoading, asyncDebounce, isFile } from './utils/common';
 
 const content = ref('');
 const paredError = ref<{
@@ -18,7 +21,14 @@ const paredError = ref<{
 const showAuth = ref(false);
 const pwd = ref('');
 
-const mermaidCollection = ref<TreeData[]>([]);
+const {
+  collection,
+  initCollection,
+  setCollection,
+  createMermaid,
+  updateMermaid,
+  deleteMermaid,
+} = useMermaid();
 
 const checkAuth = async () => {
   if (!pwd.value.trim()) {
@@ -40,17 +50,77 @@ if (!isAuth) {
   showAuth.value = true;
 }
 
-async function afterNodeOperation(
-  node: TreeViewNodeMetaModel | TreeData[],
-  operationType: OperationType,
-) {
-  console.log(
-    'afterNodeOperation',
-    node,
-    operationType,
-    JSON.parse(JSON.stringify(mermaidCollection.value)),
-  );
+/** create a issue and make the issue id to be the node id */
+async function createNode(label: string) {
+  const issue = await createMermaid(label);
+  return {
+    id: String(issue.number),
+    extra: { url: issue.url },
+  };
 }
+
+async function handleRename(node: TreeViewNodeMetaModel, newName: string) {
+  if (isFile(node.data as TreeData)) {
+    await updateMermaid(node.data.id, { title: newName });
+  }
+}
+
+async function handleDelete(node: TreeViewNodeMetaModel) {
+  if (isFile(node.data as TreeData)) {
+    await deleteMermaid(node.data.id);
+  }
+}
+
+async function afterNodeOperation() {
+  fullLoading.start();
+  try {
+    await setCollection();
+  } catch (err) {
+    ElMessage({
+      message: (err as Error).message,
+      type: 'error',
+    });
+  } finally {
+    fullLoading.close();
+  }
+}
+const debounceAfterNodeOperation = asyncDebounce(afterNodeOperation, 500);
+
+async function syncMermaidContent(selectedNodeId: number) {
+  fullLoading.start();
+  try {
+    const res = await getIssue(selectedNodeId);
+    content.value = res.body ?? '';
+  } catch (err) {
+    ElMessage({
+      message: (err as Error).message,
+      type: 'error',
+    });
+  } finally {
+    fullLoading.close();
+  }
+}
+
+function selectNode(node: TreeViewNodeMetaModel) {
+  syncMermaidContent(node.data.id);
+}
+
+onMounted(async () => {
+  fullLoading.start();
+  try {
+    await initCollection();
+  } catch (err) {
+    const msg = (err as Error).message;
+    if (!msg.startsWith('Not Found')) {
+      ElMessage({
+        message: msg,
+        type: 'error',
+      });
+    }
+  } finally {
+    fullLoading.close();
+  }
+});
 </script>
 
 <template>
@@ -58,8 +128,12 @@ async function afterNodeOperation(
     <Splitpanes v-if="!showAuth" size="50">
       <Pane min-size="15" max-size="20" size="15">
         <MermaidCollection
-          v-model="mermaidCollection"
-          :after-node-operation="afterNodeOperation"
+          v-model="collection"
+          :after-node-operation="debounceAfterNodeOperation"
+          :create-node="createNode"
+          :handle-rename="handleRename"
+          :handle-delete="handleDelete"
+          @select-node="selectNode"
         />
       </Pane>
       <Pane min-size="25" max-size="100">

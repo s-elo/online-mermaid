@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { onMounted, ref, onBeforeUnmount } from 'vue';
+import { onMounted, ref, onBeforeUnmount, watch } from 'vue';
 import { initEditor } from './monacoExtra';
 import * as monaco from 'monaco-editor';
 import monacoEditorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
@@ -16,7 +16,17 @@ const props = defineProps<{
 const emits = defineEmits(['update:modelValue']);
 
 const editorDivRef = ref<HTMLElement | null>(null);
-const editorRef = ref<monaco.editor.IStandaloneCodeEditor | null>(null);
+// looks like being proxied by ref will cause some errors
+let editor: monaco.editor.IStandaloneCodeEditor | null = null;
+
+watch(
+  () => props.modelValue,
+  () => {
+    if (editor?.getValue() === props.modelValue) return;
+    editor?.setScrollTop(0);
+    editor?.setValue(props.modelValue);
+  },
+);
 
 onMounted(() => {
   window.MonacoEnvironment = {
@@ -32,14 +42,13 @@ onMounted(() => {
 
   if (!editorDivRef.value) return;
 
-  const editor = monaco.editor.create(editorDivRef.value, {
+  editor = monaco.editor.create(editorDivRef.value, {
     minimap: {
       enabled: false,
     },
     theme: 'mermaid',
     overviewRulerLanes: 0,
   });
-  editorRef.value = editor;
 
   const model = editor.getModel();
   if (!model) {
@@ -48,9 +57,6 @@ onMounted(() => {
   }
   monaco.editor.setModelLanguage(model, 'mermaid');
   monaco.editor.setTheme('mermaid');
-
-  // Display/clear errors
-  // monaco.editor.setModelMarkers(model, 'mermaid', errorMarkers);
 
   editor.onDidChangeModelContent(({ isFlush }) => {
     const newText = editor?.getValue();
@@ -74,7 +80,7 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
-  editorRef.value?.dispose();
+  editor?.dispose();
 });
 </script>
 

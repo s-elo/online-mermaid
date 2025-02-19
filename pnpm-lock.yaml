@@ -14,6 +14,9 @@ dependencies:
   element-plus:
     specifier: ^2.9.4
     version: 2.9.4(vue@3.5.13)
+  lodash:
+    specifier: ^4.17.21
+    version: 4.17.21
   mermaid:
     specifier: ^11.4.1
     version: 11.4.1
@@ -34,6 +37,9 @@ devDependencies:
   '@rushstack/eslint-patch':
     specifier: ^1.2.0
     version: 1.2.0
+  '@types/lodash':
+    specifier: ^4.17.15
+    version: 4.17.15
   '@types/splitpanes':
     specifier: ^2.2.6
     version: 2.2.6
@@ -965,7 +971,6 @@ packages:
 
   /@types/lodash@4.17.15:
     resolution: {integrity: sha512-w/P33JFeySuhN6JLkysYUK2gEmy9kHHFN7E8ro0tkfmlDOgxBDzWEZ/J8cWA+fHqFevpswDTFZnDx+R9lbL6xw==}
-    dev: false
 
   /@types/semver@7.3.13:
     resolution: {integrity: sha512-21cFJr9z3g5dW8B0CVI9g2O9beqaThGQ6ZFBqHfwhzLDKUxaqTIy3vnfah/UPkfOiF2pLq+tGz+W8RyCskuslw==}

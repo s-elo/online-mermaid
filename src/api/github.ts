@@ -84,6 +84,17 @@ export async function getIssue(issueNum: number) {
     .then((res) => res.data);
 }
 
+export async function deleteIssue(issueNum: number) {
+  return octokit.rest.issues
+    .update({
+      owner: OWNER,
+      repo: REPO,
+      issue_number: issueNum,
+      state: 'closed',
+    })
+    .then((res) => res.data);
+}
+
 /**
  * @description get repo file content
  * @param path the file path
@@ -95,7 +106,7 @@ export async function getRepoContent(path: string) {
       repo: REPO,
       path,
     })
-    .then((res) => res.data);
+    .then((res) => res.data as { content: string; sha: string });
 }
 
 /**

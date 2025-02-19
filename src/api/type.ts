@@ -1,6 +1,6 @@
 export type UpdateIssueParams = {
   title?: string;
-  body: string;
+  body?: string;
 };
 
 export type CreateIssueParams = {

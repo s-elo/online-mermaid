@@ -15,13 +15,15 @@ import {
   ElMessage,
 } from 'element-plus';
 import { uid } from 'uid';
-import { sort, findParentInTree } from '../utils/common';
+import { sort, findParentInTree, isFile, isRootNode } from '../utils/common';
 import { TreeData, OperationType } from '../types';
 
 const props = defineProps<{
   modelValue: TreeData[];
-  /** how to create node id */
-  createNodeId?: () => Promise<string>;
+  /** how to create node with id and extra data */
+  createNode?: (
+    label: string,
+  ) => Promise<{ id: string; extra?: Record<string, string> }>;
   handleRename?: (
     node: TreeViewNodeMetaModel,
     newName: string,
@@ -36,7 +38,7 @@ const props = defineProps<{
     operation: OperationType,
   ) => Promise<void>;
 }>();
-const emit = defineEmits(['update:modelValue']);
+const emit = defineEmits(['update:modelValue', 'selectNode']);
 
 const treeRef = ref<InstanceType<typeof TreeView> | null>(null);
 const currentSelectedNode = ref<TreeViewNodeMetaModel>();
@@ -52,14 +54,6 @@ const currentOperation = ref<{
   operationType: OperationType;
   node: TreeViewNodeMetaModel | TreeData[];
 } | null>(null);
-
-function isFile(node: TreeData) {
-  return !node.children;
-}
-
-function isRootNode(node: TreeViewNodeMetaModel) {
-  return props.modelValue.find((n) => n.id === node.data.id);
-}
 
 function modelDefaults(node: TreeData) {
   const baseDefaults: TreeViewNodeMetaModelDefaults = {
@@ -82,15 +76,12 @@ function modelDefaults(node: TreeData) {
   // we need to remove it
   // note that it will call modelDefault again
   if (node.id.endsWith('-1')) {
-    console.log(node.id);
     node.id = node.id.slice(0, -2);
     // wait for the tree to update in the modelValue
     setTimeout(() => {
       afterDrop(node);
     }, 0);
   }
-
-  node.metaModel = baseDefaults as TreeViewNodeMetaModel;
 
   return baseDefaults;
 }
@@ -131,8 +122,8 @@ function afterDrop(node: TreeData) {
 }
 
 async function createFolder(node: TreeViewNodeMetaModel | TreeData[]) {
-  const isRootNode = Array.isArray(node);
-  const children = isRootNode ? node : node.data.children;
+  const isRoot = Array.isArray(node);
+  const children = isRoot ? node : node.data.children;
   children?.push({
     id: uid(),
     label: dialogInput.value,
@@ -141,23 +132,24 @@ async function createFolder(node: TreeViewNodeMetaModel | TreeData[]) {
 
   if (children) sort(children);
 
-  if (!isRootNode) {
+  if (!isRoot) {
     node.state.expanded = true;
   }
 }
 
 async function createFile(node: TreeViewNodeMetaModel | TreeData[]) {
-  const nodeId = await props.createNodeId?.();
-  const isRootNode = Array.isArray(node);
-  const children = isRootNode ? node : node.data.children;
+  const createdNode = await props.createNode?.(dialogInput.value);
+  const isRoot = Array.isArray(node);
+  const children = isRoot ? node : node.data.children;
   children?.push({
-    id: nodeId ?? uid(),
+    id: createdNode?.id ?? uid(),
     label: dialogInput.value,
+    extra: createdNode?.extra,
   });
 
   if (children) sort(children);
 
-  if (!isRootNode) {
+  if (!isRoot) {
     node.state.expanded = true;
   }
 }
@@ -167,8 +159,10 @@ async function rename(node: TreeViewNodeMetaModel) {
   node.data.label = dialogInput.value;
 }
 
-async function deleteNode(node: TreeViewNodeMetaModel) {
-  await props.handleDelete?.(node);
+async function deleteNode(node: TreeViewNodeMetaModel, needToHandle = true) {
+  if (needToHandle) {
+    await props.handleDelete?.(node);
+  }
 
   // when specify deletable as true, there will be a delete button
   // sadly, looks like no api to customize deleting operation;
@@ -179,9 +173,9 @@ async function deleteNode(node: TreeViewNodeMetaModel) {
   deleteBtn?.click();
 }
 
-function backToTop(node: TreeViewNodeMetaModel) {
+async function backToTop(node: TreeViewNodeMetaModel) {
   const nodeData = node.data as TreeData;
-  deleteNode(node);
+  await deleteNode(node, false);
   const newData = [...props.modelValue, nodeData];
   sort(newData);
   emit('update:modelValue', newData);
@@ -227,8 +221,11 @@ async function confirmOperation() {
 }
 
 function clickNode(node: TreeViewNodeMetaModel) {
+  if (currentSelectedNode.value?.data.id === node.data.id) return;
+
   if (isFile(node.data as TreeData)) {
     currentSelectedNode.value = node;
+    emit('selectNode', node);
   }
   node.state.expanded = !node.state.expanded;
 }
@@ -363,7 +360,7 @@ const applyFilter = () => {
                   >Rename</el-dropdown-item
                 >
                 <el-dropdown-item
-                  v-if="!isRootNode(metaModel)"
+                  v-if="!isRootNode(metaModel, modelValue)"
                   @click.stop="backToTop(metaModel)"
                   >Back To Top</el-dropdown-item
                 >
@@ -403,7 +400,11 @@ const applyFilter = () => {
       <template #footer>
         <div class="dialog-footer">
           <el-button @click="dialogVisible = false">Cancel</el-button>
-          <el-button type="primary" @click="confirmOperation">
+          <el-button
+            type="primary"
+            :loading="operationConfirmLoading"
+            @click="confirmOperation"
+          >
             Confirm
           </el-button>
         </div>
