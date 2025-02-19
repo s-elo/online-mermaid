@@ -55,8 +55,8 @@ const debounceAfterNodeOperation = asyncDebounce(afterNodeOperation, 500);
 
 async function selectNode(node: TreeViewNodeMetaModel) {
   return callAsync(async () => {
-    await getMermaid(node.data.id);
     selectedNode.value = node;
+    await getMermaid(node.data.id);
   });
 }
 

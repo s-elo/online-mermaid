@@ -16,6 +16,7 @@ const outOfSync = ref<boolean>(false);
 const render = async () => {
   if (!mermaidPreviewRef.value) return;
   if (!props.content) {
+    mermaidPreviewRef.value.innerHTML = '';
     updateParsedError(null);
     return;
   }

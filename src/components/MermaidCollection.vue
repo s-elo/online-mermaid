@@ -269,6 +269,7 @@ const applyFilter = () => {
       style="max-width: 600px"
       placeholder="Search"
       class="search-node-input"
+      @change="applyFilter"
     >
       <template #append>
         <span class="material-symbols-outlined search-icon" @click="applyFilter"

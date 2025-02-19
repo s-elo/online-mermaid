@@ -1,4 +1,4 @@
-import { ref, toRaw } from 'vue';
+import { ref, toRaw, watch } from 'vue';
 import { TreeViewNodeMetaModel } from '@grapoza/vue-tree';
 import {
   getRepoContent,
@@ -22,6 +22,43 @@ export function useMermaid() {
   const collectionSha = ref('');
   const collection = ref<TreeData[]>([]);
   const selectedNode = ref<TreeViewNodeMetaModel | null>(null);
+
+  const mermaids = new Map<
+    /** node/issue id */
+    string,
+    {
+      /** the actual content stored in the issue pool */
+      online: string;
+      /** local changed content */
+      local: string;
+    }
+  >();
+
+  watch(content, () => {
+    if (!selectedNode.value) return;
+
+    // handle the changes in editor
+    const cached = mermaids.get(String(selectedNode.value.data.id));
+    if (cached) {
+      cached.local = content.value;
+    }
+  });
+
+  async function getMermaid(selectedNodeId: string) {
+    const cached = mermaids.get(String(selectedNodeId));
+    if (cached) {
+      content.value = cached.local;
+      return;
+    }
+
+    const res = await getIssue(Number(selectedNodeId));
+    content.value = res.body ?? '';
+
+    mermaids.set(selectedNodeId, {
+      online: content.value,
+      local: content.value,
+    });
+  }
 
   async function initCollection() {
     const res = await getRepoContent('collection.json');
@@ -48,17 +85,12 @@ export function useMermaid() {
     return res;
   }
 
-  async function updateMermaid(id: number, params: UpdateIssueParams) {
-    return updateIssue(id, params);
+  async function updateMermaid(id: string, params: UpdateIssueParams) {
+    return updateIssue(Number(id), params);
   }
 
-  async function deleteMermaid(id: number) {
-    return deleteIssue(id);
-  }
-
-  async function getMermaid(selectedNodeId: number) {
-    const res = await getIssue(selectedNodeId);
-    content.value = res.body ?? '';
+  async function deleteMermaid(id: string) {
+    return deleteIssue(Number(id));
   }
 
   return {

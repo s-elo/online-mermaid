@@ -1,5 +1,3 @@
-import { TreeViewNodeMetaModel } from '@grapoza/vue-tree';
-
 export type TreeData = {
   id: string;
   label: string;
