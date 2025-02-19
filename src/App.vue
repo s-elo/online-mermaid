@@ -1,27 +1,21 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { onMounted } from 'vue';
 import { Splitpanes, Pane } from 'splitpanes';
 import 'splitpanes/dist/splitpanes.css';
 import MermaidEditor from './components/MermaidEditor/MermaidEditor.vue';
 import MermaidPreview from './components/MermaidPreview.vue';
 import MermaidCollection from './components/MermaidCollection.vue';
 import { TreeViewNodeMetaModel } from '@grapoza/vue-tree';
-import { ElMessage } from 'element-plus';
+import { ElMessage, ElInput, ElButton } from 'element-plus';
 import { useMermaid } from './hooks/mermaid';
-import { MarkerData } from './utils/errorHandler';
-import { getIssue, initAuth, searchIssues } from './api/github';
+import { useAuth } from './hooks/auth';
+import { getIssue } from './api/github';
 import { TreeData } from './types';
 import { fullLoading, asyncDebounce, isFile } from './utils/common';
 
-const content = ref('');
-const paredError = ref<{
-  error: Error;
-  marker?: MarkerData;
-} | null>(null);
-const showAuth = ref(false);
-const pwd = ref('');
-
 const {
+  content,
+  parsedError,
   collection,
   initCollection,
   setCollection,
@@ -30,25 +24,7 @@ const {
   deleteMermaid,
 } = useMermaid();
 
-const checkAuth = async () => {
-  if (!pwd.value.trim()) {
-    return alert('wrong password');
-  }
-  try {
-    initAuth(pwd.value);
-    await searchIssues({ content: '' });
-    localStorage.setItem('mermaid_token_pwd', pwd.value);
-    showAuth.value = false;
-  } catch {
-    showAuth.value = true;
-    alert('wrong password');
-  }
-};
-
-const isAuth = initAuth();
-if (!isAuth) {
-  showAuth.value = true;
-}
+const { checkAuth, showAuth, pwd, checkLoading } = useAuth(initCollection);
 
 /** create a issue and make the issue id to be the node id */
 async function createNode(label: string) {
@@ -106,6 +82,8 @@ function selectNode(node: TreeViewNodeMetaModel) {
 }
 
 onMounted(async () => {
+  if (showAuth.value) return;
+
   fullLoading.start();
   try {
     await initCollection();
@@ -137,15 +115,24 @@ onMounted(async () => {
         />
       </Pane>
       <Pane min-size="25" max-size="100">
-        <MermaidEditor v-model="content" :parsed-error="paredError" />
+        <MermaidEditor v-model="content" :parsed-error="parsedError" />
       </Pane>
       <Pane>
-        <MermaidPreview :content="content" @parse-error="paredError = $event" />
+        <MermaidPreview
+          :content="content"
+          @parse-error="parsedError = $event"
+        />
       </Pane>
     </Splitpanes>
     <div v-else class="auth-container">
-      <input v-model="pwd" type="text" class="auth-input" />
-      <button class="auth-button" @click="checkAuth">Login</button>
+      <el-input v-model="pwd" type="text" class="auth-input" />
+      <el-button
+        class="auth-button"
+        type="primary"
+        :loading="checkLoading"
+        @click="checkAuth"
+        >Verify</el-button
+      >
     </div>
   </div>
 </template>
@@ -175,28 +162,7 @@ onMounted(async () => {
   }
   &-input {
     width: 200px;
-    height: 30px;
-    border-radius: 5px;
-    border: 1px solid #ccc;
-    padding: 0.5rem;
-    &:focus {
-      outline: none;
-      border: 1px solid #2673dd;
-    }
-  }
-  &-button {
-    height: 30px;
-    padding: 0.5rem;
-    cursor: pointer;
-    line-height: 15px;
-    margin-left: 10px;
-    border-radius: 5px;
-    outline: none;
-    border: 1px solid #ccc;
-    background-color: white;
-    &:hover {
-      background-color: #eee;
-    }
+    margin-right: 1rem;
   }
 }
 </style>

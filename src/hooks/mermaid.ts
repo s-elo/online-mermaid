@@ -9,8 +9,14 @@ import {
 import { TreeData } from '../types';
 import { base64ToStr } from '../utils/encrypt';
 import { UpdateIssueParams } from '../api/type';
+import { MarkerData } from '../utils/errorHandler';
 
 export function useMermaid() {
+  const content = ref('');
+  const parsedError = ref<{
+    error: Error;
+    marker?: MarkerData;
+  } | null>(null);
   const collectionSha = ref('');
   const collection = ref<TreeData[]>([]);
 
@@ -48,6 +54,8 @@ export function useMermaid() {
   }
 
   return {
+    content,
+    parsedError,
     collection,
     initCollection,
     setCollection,
