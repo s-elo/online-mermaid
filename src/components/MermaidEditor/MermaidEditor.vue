@@ -23,7 +23,9 @@ watch(
   () => props.modelValue,
   () => {
     if (editor?.getValue() === props.modelValue) return;
-    editor?.setScrollTop(0);
+    if (props.modelValue.trim()) {
+      editor?.setScrollTop(0);
+    }
     editor?.setValue(props.modelValue);
   },
 );
@@ -110,7 +112,8 @@ onBeforeUnmount(() => {
 
 <style lang="scss" scoped>
 .editor-container {
-  height: 100%;
+  /** subtract tab height */
+  height: calc(100% - 55px);
   position: relative;
 }
 .mermaid-editor {

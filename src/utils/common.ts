@@ -1,6 +1,11 @@
 import { debounce } from 'lodash';
 import { TreeViewNodeMetaModel } from '@grapoza/vue-tree';
-import { LoadingOptionsResolved, ElLoading, ElMessage } from 'element-plus';
+import {
+  LoadingOptionsResolved,
+  ElLoading,
+  ElMessage,
+  ElMessageBox,
+} from 'element-plus';
 import { TreeData } from '../types';
 
 export function findParentInTree(
@@ -24,9 +29,9 @@ export function findParentInTree(
 
 export function sort(nodes: TreeData[]) {
   nodes.sort((a, b) => {
-    if (!a.children && b.children) return 1;
+    if (isFile(a) && !isFile(b)) return 1;
 
-    if ((a.children && b.children) || (!a.children && !b.children)) {
+    if ((!isFile(a) && !isFile(b)) || (isFile(a) && isFile(b))) {
       return a.label > b.label ? 1 : -1;
     }
 
@@ -51,16 +56,27 @@ class FullLoading {
 }
 export const fullLoading = new FullLoading();
 
+export async function confirm(msg: string) {
+  try {
+    await ElMessageBox.confirm(msg);
+  } catch {
+    return false;
+  }
+
+  return true;
+}
+
 /**
  * with loading and error message
  */
 export async function callAsync<T extends (...args: any) => any>(
   fn: T,
   ...args: Parameters<T>
-) {
+): Promise<ReturnType<T>> {
   fullLoading.start();
+  let ret = null as ReturnType<T>;
   try {
-    await fn(...args);
+    ret = await fn(...args);
   } catch (err) {
     ElMessage({
       message: (err as Error).message,
@@ -69,6 +85,8 @@ export async function callAsync<T extends (...args: any) => any>(
   } finally {
     fullLoading.close();
   }
+
+  return ret;
 }
 
 export function asyncDebounce<T extends Function>(fn: T, wait: number) {

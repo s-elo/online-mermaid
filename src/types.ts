@@ -14,3 +14,5 @@ export enum OperationType {
   Rename = 'Rename',
   Delete = 'Delete',
 }
+
+export type TabItem = { title: string; name: string; stale?: boolean };

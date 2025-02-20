@@ -1,16 +1,17 @@
 <script setup lang="ts">
-import { onMounted } from 'vue';
+import { onMounted, computed } from 'vue';
 import { Splitpanes, Pane } from 'splitpanes';
 import 'splitpanes/dist/splitpanes.css';
 import MermaidEditor from './components/MermaidEditor/MermaidEditor.vue';
 import MermaidPreview from './components/MermaidPreview.vue';
 import MermaidCollection from './components/MermaidCollection.vue';
+import MermaidTabs from './components/MermaidTabs.vue';
 import { TreeViewNodeMetaModel } from '@grapoza/vue-tree';
 import { ElInput, ElButton, ElMessage } from 'element-plus';
 import { useMermaid } from './hooks/mermaid';
 import { useAuth } from './hooks/auth';
 import { TreeData } from './types';
-import { asyncDebounce, isFile, callAsync } from './utils/common';
+import { asyncDebounce, isFile, callAsync, confirm } from './utils/common';
 
 const {
   content,
@@ -18,14 +19,18 @@ const {
   collection,
   initCollection,
   setCollection,
+  getMermaid,
   createMermaid,
   updateMermaid,
   deleteMermaid,
-  getMermaid,
-  selectedNode,
+  selectedNodeId,
+  mermaidTabs,
+  syncMermaidCache,
 } = useMermaid();
 
 const { checkAuth, showAuth, pwd, checkLoading } = useAuth(initCollection);
+
+const showEmpty = computed(() => !mermaidTabs.value.length);
 
 /** create a issue and make the issue id to be the node id */
 async function createNode(label: string) {
@@ -39,6 +44,11 @@ async function createNode(label: string) {
 async function handleRename(node: TreeViewNodeMetaModel, newName: string) {
   if (isFile(node.data as TreeData)) {
     await updateMermaid(node.data.id, { title: newName });
+
+    const tabs = mermaidTabs.value.find((t) => t.name === node.data.id);
+    if (tabs) {
+      tabs.title = newName;
+    }
   }
 }
 
@@ -54,19 +64,49 @@ async function afterNodeOperation() {
 const debounceAfterNodeOperation = asyncDebounce(afterNodeOperation, 500);
 
 async function selectNode(node: TreeViewNodeMetaModel) {
-  return callAsync(async () => {
-    selectedNode.value = node;
-    await getMermaid(node.data.id);
-  });
+  await getMermaid(node.data.id);
+  if (!mermaidTabs.value.find((t) => t.name === node.data.id)) {
+    mermaidTabs.value.push({
+      name: node.data.id,
+      title: node.data.label,
+    });
+  }
+}
+
+async function selectTab(tabName: string) {
+  await getMermaid(tabName);
+}
+
+async function removeTab(tabName: string) {
+  const tabIdx = mermaidTabs.value.findIndex((t) => t.name === tabName);
+
+  if (
+    mermaidTabs.value[tabIdx].stale &&
+    !(await confirm(`The ${mermaidTabs.value[tabIdx].title} is not saved`))
+  ) {
+    return;
+  }
+
+  mermaidTabs.value.splice(tabIdx, 1);
+
+  if (tabName !== selectedNodeId.value) return;
+
+  if (mermaidTabs.value.length) {
+    const lastTab = mermaidTabs.value[mermaidTabs.value.length - 1];
+    await getMermaid(lastTab.name);
+  } else {
+    content.value = '';
+  }
 }
 
 async function save(content: string) {
-  if (!selectedNode.value) return;
+  if (!selectedNodeId.value) return;
 
   try {
-    await updateMermaid(selectedNode.value.data.id, {
+    await updateMermaid(selectedNodeId.value, {
       body: content,
     });
+    syncMermaidCache(selectedNodeId.value, content);
   } catch (err) {
     ElMessage({
       type: 'error',
@@ -95,18 +135,31 @@ onMounted(async () => {
           @select-node="selectNode"
         />
       </Pane>
-      <Pane min-size="25" max-size="100">
-        <MermaidEditor
-          v-model="content"
-          :parsed-error="parsedError"
-          @save="save"
-        />
-      </Pane>
       <Pane>
-        <MermaidPreview
-          :content="content"
-          @parse-error="parsedError = $event"
+        <MermaidTabs
+          :tabs="mermaidTabs"
+          :tab="selectedNodeId"
+          @select-tab="selectTab"
+          @tab-remove="removeTab"
         />
+        <Splitpanes v-show="!showEmpty" size="50">
+          <Pane>
+            <MermaidEditor
+              v-model="content"
+              :parsed-error="parsedError"
+              @save="save"
+            />
+          </Pane>
+          <Pane>
+            <MermaidPreview
+              :content="content"
+              @parse-error="parsedError = $event"
+            />
+          </Pane>
+        </Splitpanes>
+        <div v-if="showEmpty" class="empty-view">
+          Select or create a mermaid chart now!
+        </div>
       </Pane>
     </Splitpanes>
     <div v-else class="auth-container">
@@ -125,6 +178,14 @@ onMounted(async () => {
 <style scoped lang="scss">
 .container {
   height: 100%;
+  .empty-view {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: #a7a4a4;
+  }
 }
 </style>
 <style lang="scss">
@@ -136,18 +197,6 @@ onMounted(async () => {
   cursor: col-resize;
   &:hover {
     background-color: #e9e7e7;
-  }
-}
-.auth {
-  &-container {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100%;
-  }
-  &-input {
-    width: 200px;
-    margin-right: 1rem;
   }
 }
 </style>

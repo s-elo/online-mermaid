@@ -1,5 +1,4 @@
 import { ref, toRaw, watch } from 'vue';
-import { TreeViewNodeMetaModel } from '@grapoza/vue-tree';
 import {
   getRepoContent,
   createOrUpdateRepoContent,
@@ -8,10 +7,11 @@ import {
   deleteIssue,
   getIssue,
 } from '../api/github';
-import { TreeData } from '../types';
+import { TreeData, TabItem } from '../types';
 import { base64ToStr } from '../utils/encrypt';
 import { UpdateIssueParams } from '../api/type';
 import { MarkerData } from '../utils/errorHandler';
+import { callAsync } from '../utils/common';
 
 export function useMermaid() {
   const content = ref('');
@@ -21,7 +21,8 @@ export function useMermaid() {
   } | null>(null);
   const collectionSha = ref('');
   const collection = ref<TreeData[]>([]);
-  const selectedNode = ref<TreeViewNodeMetaModel | null>(null);
+  const selectedNodeId = ref('');
+  const mermaidTabs = ref<TabItem[]>([]);
 
   const mermaids = new Map<
     /** node/issue id */
@@ -35,26 +36,31 @@ export function useMermaid() {
   >();
 
   watch(content, () => {
-    if (!selectedNode.value) return;
+    if (!selectedNodeId.value) return;
 
     // handle the changes in editor
-    const cached = mermaids.get(String(selectedNode.value.data.id));
-    if (cached) {
-      cached.local = content.value;
-    }
+    const cached = mermaids.get(selectedNodeId.value);
+    if (!cached) return;
+
+    cached.local = content.value;
+    const tab = mermaidTabs.value.find((t) => t.name === selectedNodeId.value);
+    if (!tab) return;
+
+    tab.stale = cached.local !== cached.online;
   });
 
-  async function getMermaid(selectedNodeId: string) {
-    const cached = mermaids.get(String(selectedNodeId));
+  async function getMermaid(id: string) {
+    selectedNodeId.value = id;
+    const cached = mermaids.get(id);
     if (cached) {
       content.value = cached.local;
       return;
     }
 
-    const res = await getIssue(Number(selectedNodeId));
+    const res = await callAsync(getIssue, Number(id));
     content.value = res.body ?? '';
 
-    mermaids.set(selectedNodeId, {
+    mermaids.set(id, {
       online: content.value,
       local: content.value,
     });
@@ -86,17 +92,34 @@ export function useMermaid() {
   }
 
   async function updateMermaid(id: string, params: UpdateIssueParams) {
-    return updateIssue(Number(id), params);
+    await updateIssue(Number(id), params);
+    const cached = mermaids.get(id);
+    if (cached) {
+      cached.online = cached.local;
+    }
   }
 
   async function deleteMermaid(id: string) {
     return deleteIssue(Number(id));
   }
 
+  function syncMermaidCache(id: string, content: string) {
+    const cached = mermaids.get(id);
+    if (cached) {
+      cached.online = cached.local = content;
+
+      const tab = mermaidTabs.value.find((t) => t.name === id);
+      if (!tab) return;
+
+      tab.stale = false;
+    }
+  }
+
   return {
     content,
+    mermaidTabs,
     parsedError,
-    selectedNode,
+    selectedNodeId,
     collection,
     initCollection,
     setCollection,
@@ -104,5 +127,6 @@ export function useMermaid() {
     updateMermaid,
     deleteMermaid,
     getMermaid,
+    syncMermaidCache,
   };
 }
