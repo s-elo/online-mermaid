@@ -4,6 +4,7 @@ import ElementPlus from 'unplugin-element-plus/vite';
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  base: '/online-mermaid',
   server: {
     port: 3888,
   },
