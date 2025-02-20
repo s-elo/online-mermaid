@@ -193,6 +193,17 @@ onMounted(async () => {
     align-items: center;
     color: #a7a4a4;
   }
+  .auth-container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    .auth-input {
+      width: 300px;
+      margin-right: 0.5rem;
+    }
+  }
 }
 </style>
 <style lang="scss">
