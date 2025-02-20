@@ -73,6 +73,13 @@ export function useMermaid() {
     const collectionData = JSON.parse(base64ToStr(res.content));
     collection.value = collectionData;
     collectionSha.value = res.sha || '';
+
+    setTimeout(() => {
+      const nodeId = new URLSearchParams(location.search).get('id');
+      if (nodeId) {
+        (document.querySelector(`#node-id-${nodeId}`) as HTMLElement)?.click();
+      }
+    }, 0);
   }
 
   async function setCollection() {

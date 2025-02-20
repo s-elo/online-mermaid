@@ -77,6 +77,7 @@ async function selectNode(node: TreeViewNodeMetaModel) {
       title: node.data.label,
     });
   }
+  history.pushState(null, '', `${location.pathname}?id=${node.data.id}`);
 }
 
 async function selectTab(tabName: string) {
@@ -123,8 +124,7 @@ async function save(content: string) {
 
 onMounted(async () => {
   if (showAuth.value) return;
-
-  callAsync(initCollection);
+  await callAsync(initCollection);
 });
 </script>
 
