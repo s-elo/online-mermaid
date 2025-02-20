@@ -23,7 +23,7 @@ you can make it private if you want.
 
 ### Setup github ci
 
-- Go to the repo's `settings->pages`: enable the github page from the `main` branch.
+- Go to the repo's `settings->pages`: enable the `Build and deployment` source from `Github Actions`.
 - Go to the repo's `settings->Secrets and variables->Actions`: add `MY_API_TOKEN` and `MY_PASSWORD` as `secret keys`
   - `MY_API_TOKEN`: your personal github api access token
   - `MY_PASSWORD`: the password to verify
