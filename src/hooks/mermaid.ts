@@ -58,7 +58,9 @@ export function useMermaid() {
     }
 
     const res = await callAsync(getIssue, Number(id));
-    content.value = res.body ?? '';
+    const parsedContent =
+      res.body?.match(/^```mermaid\n([\s\S]+)\n```$/)?.[1] ?? '';
+    content.value = parsedContent;
 
     mermaids.set(id, {
       online: content.value,
@@ -96,6 +98,10 @@ export function useMermaid() {
   }
 
   async function updateMermaid(id: string, params: UpdateIssueParams) {
+    if (params.body) {
+      params.body = `\`\`\`mermaid\n${params.body}\n\`\`\``;
+    }
+
     await updateIssue(Number(id), params);
     const cached = mermaids.get(id);
     if (cached) {
