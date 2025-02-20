@@ -26,6 +26,7 @@ import { TreeData, OperationType } from '../types';
 
 const props = defineProps<{
   modelValue: TreeData[];
+  selectedNodeId: string;
   /** how to create node with id and extra data */
   createNode?: (
     label: string,
@@ -47,7 +48,6 @@ const props = defineProps<{
 const emit = defineEmits(['update:modelValue', 'selectNode']);
 
 const treeRef = ref<InstanceType<typeof TreeView> | null>(null);
-const currentSelectedNode = ref<TreeViewNodeMetaModel>();
 /**
  * - create folder name
  * - create file name
@@ -147,17 +147,20 @@ async function createFile(node: TreeViewNodeMetaModel | TreeData[]) {
   const createdNode = await props.createNode?.(dialogInput.value);
   const isRoot = Array.isArray(node);
   const children = isRoot ? node : node.data.children;
-  children?.push({
+  const newNode = {
     id: createdNode?.id ?? uid(),
     label: dialogInput.value,
     extra: createdNode?.extra,
-  });
+  };
+  children?.push(newNode);
 
   if (children) sort(children);
 
   if (!isRoot) {
     node.state.expanded = true;
   }
+
+  return newNode;
 }
 
 async function rename(node: TreeViewNodeMetaModel) {
@@ -195,7 +198,15 @@ async function confirmOperation() {
   if (curOperationType === OperationType.CreateFolder) {
     await createFolder(currentOperation.value.node);
   } else if (curOperationType === OperationType.CreateFile) {
-    await createFile(currentOperation.value.node);
+    const newNode = await createFile(currentOperation.value.node);
+    // mock as a TreeViewNodeMetaModel
+    const newMetaModel = treeRef.value?.getMatching(
+      (n) => n.data.id === newNode.id,
+    );
+    if (newMetaModel?.length) {
+      currentOperation.value.node = newMetaModel[0];
+      emit('selectNode', newMetaModel[0]);
+    }
   } else if (curOperationType === OperationType.Rename) {
     await rename(currentOperation.value.node as TreeViewNodeMetaModel);
   } else if (curOperationType === OperationType.Delete) {
@@ -215,10 +226,9 @@ async function confirmOperation() {
 }
 
 function clickNode(node: TreeViewNodeMetaModel) {
-  if (currentSelectedNode.value?.data.id === node.data.id) return;
+  if (props.selectedNodeId === node.data.id) return;
 
   if (isFile(node.data as TreeData)) {
-    currentSelectedNode.value = node;
     emit('selectNode', node);
   }
   node.state.expanded = !node.state.expanded;
@@ -320,7 +330,7 @@ const applyFilter = () => {
           <div
             class="node-text"
             :class="{
-              selected: metaModel.data.id === currentSelectedNode?.data?.id,
+              selected: metaModel.data.id === selectedNodeId,
             }"
           >
             {{ metaModel.data.label }}

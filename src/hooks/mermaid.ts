@@ -88,6 +88,10 @@ export function useMermaid() {
       body: '',
       title,
     });
+    mermaids.set(String(res.number), {
+      local: '',
+      online: '',
+    });
     return res;
   }
 

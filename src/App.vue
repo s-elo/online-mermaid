@@ -10,7 +10,7 @@ import { TreeViewNodeMetaModel } from '@grapoza/vue-tree';
 import { ElInput, ElButton, ElMessage } from 'element-plus';
 import { useMermaid } from './hooks/mermaid';
 import { useAuth } from './hooks/auth';
-import { TreeData } from './types';
+import { TreeData, OperationType } from './types';
 import { asyncDebounce, isFile, callAsync, confirm } from './utils/common';
 
 const {
@@ -44,11 +44,6 @@ async function createNode(label: string) {
 async function handleRename(node: TreeViewNodeMetaModel, newName: string) {
   if (isFile(node.data as TreeData)) {
     await updateMermaid(node.data.id, { title: newName });
-
-    const tabs = mermaidTabs.value.find((t) => t.name === node.data.id);
-    if (tabs) {
-      tabs.title = newName;
-    }
   }
 }
 
@@ -58,8 +53,19 @@ async function handleDelete(node: TreeViewNodeMetaModel) {
   }
 }
 
-async function afterNodeOperation() {
-  return setCollection();
+async function afterNodeOperation(
+  node: TreeViewNodeMetaModel | TreeData[],
+  operationType: OperationType,
+) {
+  await setCollection();
+
+  if (operationType === OperationType.Rename) {
+    const updatedNodeData = (node as TreeViewNodeMetaModel).data;
+    const tab = mermaidTabs.value.find((t) => t.name === updatedNodeData.id);
+    if (tab) {
+      tab.title = updatedNodeData.label;
+    }
+  }
 }
 const debounceAfterNodeOperation = asyncDebounce(afterNodeOperation, 500);
 
@@ -128,6 +134,7 @@ onMounted(async () => {
       <Pane min-size="15" max-size="20" size="15">
         <MermaidCollection
           v-model="collection"
+          :selected-node-id="selectedNodeId"
           :after-node-operation="debounceAfterNodeOperation"
           :create-node="createNode"
           :handle-rename="handleRename"
