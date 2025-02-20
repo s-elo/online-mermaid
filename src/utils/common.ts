@@ -108,3 +108,46 @@ export function isFile(node: TreeData) {
 export function isRootNode(node: TreeViewNodeMetaModel, tree: TreeData[]) {
   return tree.find((n) => n.id === node.data.id);
 }
+
+/**
+ * get the trace path of the node in the tree
+ */
+export function getNodePath(tree: TreeViewNodeMetaModel[], targetId: string) {
+  const stack = tree.map<NodeWithParent>((n) => ({
+    node: n,
+    parent: null,
+  }));
+
+  type NodeWithParent = {
+    node: TreeViewNodeMetaModel;
+    parent: NodeWithParent | null;
+  };
+
+  const ToParentArr = (node: NodeWithParent) => {
+    const ret: TreeViewNodeMetaModel[] = [];
+    let cur: NodeWithParent | null = node;
+    while (cur) {
+      if (!isFile(cur.node.data as TreeData)) {
+        ret.push(cur.node);
+      }
+      cur = cur.parent;
+    }
+    return ret;
+  };
+
+  while (stack.length) {
+    const node = stack.pop();
+    if (!node) return [];
+
+    if (node.node.data.id === targetId) {
+      return ToParentArr(node);
+    }
+
+    stack.push(
+      ...node.node.childMetaModels.map((n) => ({
+        node: n,
+        parent: node,
+      })),
+    );
+  }
+}

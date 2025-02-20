@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import {
   TreeView,
   TreeViewNodeMetaModelDefaults,
@@ -21,6 +21,7 @@ import {
   isFile,
   isRootNode,
   callAsync,
+  getNodePath,
 } from '../utils/common';
 import { TreeData, OperationType } from '../types';
 
@@ -60,6 +61,17 @@ const currentOperation = ref<{
   operationType: OperationType;
   node: TreeViewNodeMetaModel | TreeData[];
 } | null>(null);
+
+watch(
+  () => props.selectedNodeId,
+  () => {
+    getNodePath(treeRef.value?.metaModel ?? [], props.selectedNodeId)?.forEach(
+      (n) => {
+        n.state.expanded = true;
+      },
+    );
+  },
+);
 
 function modelDefaults(node: TreeData) {
   const baseDefaults: TreeViewNodeMetaModelDefaults = {
