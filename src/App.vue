@@ -102,7 +102,7 @@ async function removeTab(tabName: string) {
     const lastTab = mermaidTabs.value[mermaidTabs.value.length - 1];
     await getMermaid(lastTab.name);
   } else {
-    content.value = '';
+    selectedNodeId.value = '';
   }
 }
 
