@@ -72,7 +72,9 @@ onMounted(() => {
 
 <style lang="scss" scoped>
 .view-container {
-  height: 100%;
+  $headerOffset: 60px;
+  height: calc(100% - $headerOffset);
+  overflow: auto;
   &.error {
     opacity: 0.5;
   }
